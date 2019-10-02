@@ -2,3 +2,4 @@ numpy
 astropy
 scipy
 OpenEXR
+Imath
