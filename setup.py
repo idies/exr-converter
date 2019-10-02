@@ -1,9 +1,9 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='exr-converter',
-    version='0.1',
-    author='Manuchehr Taghizadeh-Popp, add more',
+    name='exrconverter',
+    version='1.0.0',
+    author='Manuchehr Taghizadeh-Popp, Jared Feingold, Keyi Chen',
     author_email='mtaghiza@jhu.edu',
     description='Python package for converting EXR images into different file formats, back and forth.',
     long_description=open('README.md').read(),
@@ -18,7 +18,7 @@ setup(
     classifiers = [
                    "Intended Audience :: Developers",
                    "Operating System :: OS Independent",
-                   "License :: OSI Approved :: MIT License",
+                   "License :: OSI Approved :: Apache 2.0",
                    "Programming Language :: Python",
                    "Programming Language :: Python :: 3.6",
                    "Programming Language :: Python :: 3.7",
