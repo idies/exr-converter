@@ -1,5 +1,7 @@
 # exr-converter
-This python package converts EXR images into several file formats, back and forth.
+This python package converts EXR images into several image file formats, back and forth.  
+The conversion also allows for the output image file to contain pixels of different data type to those 
+in the input image file (if permitted by the file format)
 
 ### Requirements
 1.  OpenEXR C++ library. 
