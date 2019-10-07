@@ -1,5 +1,6 @@
 import numpy
 
+
 class PixelType(object):
     FLOAT16 = numpy.float16
     FLOAT32 = numpy.float32
