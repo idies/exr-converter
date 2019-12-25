@@ -1,52 +1,96 @@
-from PIL import Image
+import SimpleITK as sitk
 import numpy
 import OpenEXR
 import Imath
 import json
 import warnings
-from .utils import __FITS_HEADERS_ID, __get_pixeltype_from_channel, __get_exrpixel_from_channel, __change_array_type
+import os
+from .utils import __get_pixeltype_from_channel, __get_exrpixel_from_channel, __change_array_type, __get_channel_from_pixeltype, __TIFF_HEADERS_ID
 from .pixeltype import PixelType
+    
+def convert_directory(path, output_pixel_type=None, verbose=True):
+    """
+    Converts directory of TIFF files to EXR.
+    :param path: path of the directory.
+    :param output_pixel_type: If equal to None, the output file image will have the same pixel type or format
+                              of that in the input file image. If changing the pixel type is desired, then
+                              output_pixel_type can take the values defined by the fields in the class
+                              exrconverter.pixeltype.PixelType. Example: output_pixel_type=PixelType.FLOAT32.
+                              Since the underlying implementation uses numpy arrays, output_pixel_type can also take
+                              numpy dtypes values, For example, output_pixel_type=numpy.float32.
+    :param verbose: Boolean variable for deciding whether to print warning messages.
+    :example: convert_directory(path='path/to/tif', output_pixel_type=numpy.float32, verbose=True)
+    """
+    
+    for filename in os.listdir(path):
+        if filename[-4:] == 'tiff':
+            output_filename = path + '/' + filename[:-5] + ".exr"
+        elif filename[-3:] == 'tif':
+            output_filename = path + '/' + filename[:-4] + ".exr"
+        else:
+            continue
+        
+        if verbose:
+            print ("Converting: " + filename)
+         
+        convert(path + '/' + filename, output_filename, output_pixel_type, verbose)
 
 def convert(input_tiff, output_exr, output_pixel_type=None, verbose=True):
+    """
+    Converts an input Tiff file into a EXR file. Multiple layers in the input Tiff file are created as multiple layers in the output EXR file. The pixels in the output image file can also be set to a different type as that of
+    the pixels in the input image file.
+    :param input_tiff: path (string) of the input TIFF file.
+    :param output_exr: path (string) to the output EXR file.
+    :param output_pixel_type: If equal to None, the output file image will have the same pixel type or format
+                              of that in the input file image. If changing the pixel type is desired, then
+                              output_pixel_type can take the values defined by the fields in the class
+                              exrconverter.pixeltype.PixelType. Example: output_pixel_type=PixelType.FLOAT32.
+                              Since the underlying implementation uses numpy arrays, output_pixel_type can also take
+                              numpy dtypes values, For example, output_pixel_type=numpy.float32.
+    :param verbose: Boolean variable for deciding whether to print warning messages.
+    :example: convert(input_tiff="/path/to/input_tiff.tiff", output_exr="/path/to/output_exr.exr",
+                      output_pixel_type=numpy.float32, verbose=True)
+    """
+    reader = sitk.ImageFileReader()
+    reader.SetImageIO("TIFFImageIO")
+    reader.SetFileName(input_tiff)
+    tiff_image = reader.Execute()
+    tiff_image_array = sitk.GetArrayFromImage(tiff_image)
     
-    tiff_image_indexes = []
-    image_array_shape = None
+    if not output_pixel_type:
+        tiff_image.GetPixelIDType()
+        # Need to fill this in. 
+
+    image_array_shape = tiff_image.GetSize()
     
-    with Image.open('multipage_tiff_example.tif') as tiff:
-                
-        for index in range(tiff.n_frames):
-            tiff.seek(index)
-            
-            # This might need to be fleshed out more. 
-            if image_array_shape is None:
-                # 256 is the key for ImageWidth and 257 is the key for ImageLength
-                image_array_shape = (tiff.tag[256][0], tiff.tag[257][0])
-                tiff_image_indexes.append(index)
-            else:
-                if (tiff.tag[256], tiff.tag[257]) == image_array_shape:
-                    tiff_image_indexes.append(index)
+    exr_header = OpenEXR.Header(image_array_shape[0], image_array_shape[1])
+    # exr_header['compression'] = Imath.Compression(Imath.Compression.PIZ_COMPRESSION)
+    exr_header['channels'] = {}
+    exr_data = {}
+    tiff_headers = []
+    
+    meta_data = {}
+    for key in tiff_image.GetMetaDataKeys():
+        meta_data[key] = tiff_image.GetMetaData(key)
+    tiff_headers.append(meta_data)
+    
+    for channel in range(tiff_image.GetDepth()):
+        exr_data[str(channel)] = __change_array_type(tiff_image_array[channel], output_pixel_type)
+        exr_header['channels'][str(channel)] = __get_channel_from_pixeltype(output_pixel_type)
         
-        if len(tiff_image_indexes) == 0:
-            if verbose:
-                warnings.warn("Tiff file has no images")
-            return
+        meta_data = {}
+        for key in tiff_image[:,:,channel].GetMetaDataKeys():
+            meta_data[key] = tiff_image[:,:,channel].GetMetaData(key)
+        tiff_headers.append(meta_data)
         
-        print (type(image_array_shape[1]))
-        exr_header = OpenEXR.Header(image_array_shape[1], image_array_shape[0])
-        exr_header['channels'] = {}
-        exr_data = {}
-        tiff_headers = []
+    exr_header[__TIFF_HEADERS_ID] = str.encode(json.dumps(tiff_headers))
+    
+    try:
+        
+        exr_file = OpenEXR.OutputFile(output_exr, exr_header)
+        exr_file.writePixels(exr_data)
 
-        for exr_index, tiff_index in enumerate(tiff_image_indexes):
-            tiff.seek(tiff_index)
-            exr_data[str(exr_index)] = __change_array_type(np.array(tiff), output_pixel_type)
-            exr_header['channels'][str(exr_index)] = __get_channel_from_pixeltype(output_pixel_type)
-            tiff_headers.append(dict(tiff.tag))
-            
-        exr_header[__TIFF_HEADERS_ID] = str.encode(json.dumps(tiff_headers))
+    finally:
+        exr_file.close()
 
-        try:
-            exr_file = OpenEXR.OutputFile(output_exr, exr_header)
-            exr_file.writePixels(exr_data)
-        finally:
-            exr_file.close()
+        
