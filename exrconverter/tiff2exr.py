@@ -5,7 +5,7 @@ import Imath
 import json
 import warnings
 import os
-from .utils import __get_pixeltype_from_channel, __get_exrpixel_from_channel, __change_array_type, __get_channel_from_pixeltype, __TIFF_HEADERS_ID
+from .utils import __get_pixeltype_from_channel, __get_exrpixel_from_channel, __change_array_type, __get_channel_from_pixeltype, __TIFF_HEADERS_ID, __get_pixeltype_from_tiff
 from .pixeltype import PixelType
     
 def convert_directory(path, compression=None, output_pixel_type=None, verbose=True):
@@ -62,8 +62,8 @@ def convert(input_tiff, output_exr, compression=None, output_pixel_type=None, ve
     tiff_image_array = sitk.GetArrayFromImage(tiff_image)
     
     if not output_pixel_type:
-        tiff_image.GetPixelIDType()
-        # Need to fill this in. 
+        output_pixel_type = __get_pixeltype_from_tiff(tiff_image.GetPixelIDTypeAsString())
+
 
     image_array_shape = tiff_image.GetSize()
     

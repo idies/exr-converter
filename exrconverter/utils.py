@@ -4,6 +4,7 @@ import OpenEXR
 from .pixeltype import PixelType
 
 __FITS_HEADERS_ID = "fits_headers"
+__TIFF_HEADERS_ID = "tiff_headers"
 
 
 def __get_pixeltype_from_bitpix(bitpix):
@@ -74,3 +75,12 @@ def __get_bitpix_from_channel(channel_type):
         return -16
     else:
         raise Exception("Unsupported channel type " + str(channel_type))
+
+def __get_pixeltype_from_tiff(pixel_type):
+    # Add more types as they show up
+    if pixel_type == "32-bit float":
+        return PixelType.FLOAT32
+    elif pixel_type == '64-bit float':
+        return PixelType.FLOAT64
+    else:
+        raise Exception("Unsupported pixel value " + str(pixel_type))
