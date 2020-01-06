@@ -8,10 +8,12 @@ import os
 from .utils import __get_pixeltype_from_channel, __get_exrpixel_from_channel, __change_array_type, __get_channel_from_pixeltype, __TIFF_HEADERS_ID
 from .pixeltype import PixelType
     
-def convert_directory(path, output_pixel_type=None, verbose=True):
+def convert_directory(path, compression=None, output_pixel_type=None, verbose=True):
     """
     Converts directory of TIFF files to EXR.
     :param path: path of the directory.
+    :param compression: If equal to None, the output file will have ZIP_COMPRESSION (this is the exr default). 
+                        Options are 'NONE', 'RLE', 'ZIPS', 'ZIPS', 'PIZ', 'PXR24', 'B44'. 'B44A', 'DWAA', or 'DWAB'.
     :param output_pixel_type: If equal to None, the output file image will have the same pixel type or format
                               of that in the input file image. If changing the pixel type is desired, then
                               output_pixel_type can take the values defined by the fields in the class
@@ -33,14 +35,16 @@ def convert_directory(path, output_pixel_type=None, verbose=True):
         if verbose:
             print ("Converting: " + filename)
          
-        convert(path + '/' + filename, output_filename, output_pixel_type, verbose)
+        convert(path + '/' + filename, output_filename, compression, output_pixel_type, verbose)
 
-def convert(input_tiff, output_exr, output_pixel_type=None, verbose=True):
+def convert(input_tiff, output_exr, compression=None, output_pixel_type=None, verbose=True):
     """
     Converts an input Tiff file into a EXR file. Multiple layers in the input Tiff file are created as multiple layers in the output EXR file. The pixels in the output image file can also be set to a different type as that of
     the pixels in the input image file.
     :param input_tiff: path (string) of the input TIFF file.
     :param output_exr: path (string) to the output EXR file.
+    :param compression: If equal to None, the output file will have ZIP_COMPRESSION (this is the exr default). 
+                        Options are 'NONE', 'RLE', 'ZIPS', 'ZIPS', 'PIZ', 'PXR24', 'B44'. 'B44A', 'DWAA', or 'DWAB'.
     :param output_pixel_type: If equal to None, the output file image will have the same pixel type or format
                               of that in the input file image. If changing the pixel type is desired, then
                               output_pixel_type can take the values defined by the fields in the class
@@ -65,6 +69,16 @@ def convert(input_tiff, output_exr, output_pixel_type=None, verbose=True):
     
     exr_header = OpenEXR.Header(image_array_shape[0], image_array_shape[1])
     # exr_header['compression'] = Imath.Compression(Imath.Compression.PIZ_COMPRESSION)
+
+    compression_options = {'NO' : Imath.Compression.NO_COMPRESSION, 'RLE' : Imath.Compression.RLE_COMPRESSION, 'ZIPS' : Imath.Compression.ZIPS_COMPRESSION,
+                            'ZIP' : Imath.Compression.ZIP_COMPRESSION, 'PIZ' : Imath.Compression.PIZ_COMPRESSION, 'PXR24' : Imath.Compression.PXR24_COMPRESSION,
+                            'B44' : Imath.Compression.B44_COMPRESSION, 'B44A' : Imath.Compression.B44A_COMPRESSION,'DWAA' : Imath.Compression.DWAA_COMPRESSION, 
+                            'DWAB' : Imath.Compression.DWAB_COMPRESSION
+                            }
+    
+    if compression:
+        exr_header['compression'] = Imath.Compression(compression_options[compression])
+
     exr_header['channels'] = {}
     exr_data = {}
     tiff_headers = []

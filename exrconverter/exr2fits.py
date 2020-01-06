@@ -1,5 +1,6 @@
 from astropy.io import fits
 import numpy
+import os
 import OpenEXR
 import json
 import warnings
@@ -7,6 +8,30 @@ from .utils import __FITS_HEADERS_ID, __get_pixeltype_from_channel, __get_exrpix
     __change_array_type
 from .pixeltype import PixelType
 
+def convert_directory(path, output_pixel_type=None, verbose=True):
+    """
+    Converts directory of EXR files to FITS.
+    :param path: path of the directory.
+    :param output_pixel_type: If equal to None, the output file image will have the same pixel type or format
+                              of that in the input file image. If changing the pixel type is desired, then
+                              output_pixel_type can take the values defined by the fields in the class
+                              exrconverter.pixeltype.PixelType. Example: output_pixel_type=PixelType.FLOAT32.
+                              Since the underlying implementation uses numpy arrays, output_pixel_type can also take
+                              numpy dtypes values, For example, output_pixel_type=numpy.float32.
+    :param verbose: Boolean variable for deciding whether to print warning messages.
+    :example: convert_directory(path='path/to/exr', output_pixel_type=numpy.float32, verbose=True)
+    """
+    
+    for filename in os.listdir(path):
+        if filename[-3:] == "exr":
+            output_filename = path + '/' + filename[:-4] + ".fits"
+        else:
+            continue
+        
+        if verbose:
+            print ("Converting: " + filename)
+         
+        convert(path + '/' + filename, output_filename, output_pixel_type, verbose)
 
 def convert(input_exr, output_fits, output_pixel_type=None, verbose=True):
     """
@@ -39,11 +64,11 @@ def convert(input_exr, output_fits, output_pixel_type=None, verbose=True):
 
     exr_header = exr_file.header()
 
-    for channel_index, (channel_name, channel_type) in enumerate(exr_header['channels'].items()):
-
-        byte_image = exr_file.channel(channel_name, __get_exrpixel_from_channel(channel_type))
-
+    for channel_index in sorted(exr_header['channels'].keys(), key=lambda x: float(x)):
+        channel_type = exr_header['channels'][channel_index]
+        byte_image = exr_file.channel(str(channel_index), __get_exrpixel_from_channel(channel_type))
         pixel_type = __get_pixeltype_from_channel(channel_type)
+
         if output_pixel_type is None:
             output_pixel_type = pixel_type
 
@@ -60,7 +85,7 @@ def convert(input_exr, output_fits, output_pixel_type=None, verbose=True):
         if fits_headers is None:
             hdu_list.append(fits.ImageHDU(data=hdu_data))
         else:
-            hdu_header = fits.Header.fromstring(fits_headers[channel_index])
+            hdu_header = fits.Header.fromstring(fits_headers[int(channel_index)])
             hdu_list.append(fits.ImageHDU(data=hdu_data, header=hdu_header))
 
     hdu_list.writeto(output_fits, overwrite=True)
